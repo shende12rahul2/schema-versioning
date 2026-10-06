@@ -11,7 +11,7 @@ All changes to our Oracle database are SQL files in this repository.
 
 - **Table / column / index / data change** → new **V file**: `tools\db new LOS-1234 add pan`
 - **Procedure / view / package / trigger / grant** → edit its **R file**
-- Test on your personal schema: `tools\db migrate personal`
+- Test on your developer database: `tools\db migrate developer`
 - Pull request → review → merge → DB lead runs `tools\db migrate dev`
 - Never change shared Dev by hand. Never edit a merged V file.
 
@@ -21,13 +21,14 @@ All changes to our Oracle database are SQL files in this repository.
 conf/
   flyway.conf                  shared settings (no passwords)
   env/dev.conf                 shared Dev database
-  env/personal.conf.example    copy to personal.conf for your own schema
+  env/developer.conf.example    copy to developer.conf for your own schema
   env/local-*.conf             local practice lab only
 db/
   migrations/versioned/        V files – run once, in order
   migrations/repeatable/       R files – one per code object, re-run when changed
   callbacks/                   automatic checks after every run
   legacy/                      old scripts, read-only archive (example LOS schema)
+  testdata/                    test data for developer databases (never run by Flyway)
 tools/
   db.cmd  (Windows)  /  db.sh  (Linux/Mac)   simple commands around Flyway
 docs/
@@ -42,6 +43,6 @@ local/
 ## First-time setup on your machine
 
 1. Install Docker Desktop (Flyway then runs from Docker), or the [Flyway CLI](https://documentation.red-gate.com/flyway/getting-started-with-flyway) on your `PATH`.
-2. Copy `conf/env/personal.conf.example` → `conf/env/personal.conf` and fill in your schema name.
+2. Copy `conf/env/developer.conf.example` → `conf/env/developer.conf` and fill in your schema name.
 3. `set FLYWAY_PASSWORD=...` (Windows) or `export FLYWAY_PASSWORD=...` (Linux/Mac).
-4. `tools\db reset` – builds your personal schema from Git.
+4. `tools\db reset` – builds your developer database from Git.

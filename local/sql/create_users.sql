@@ -5,15 +5,15 @@ ALTER SESSION SET CONTAINER = FREEPDB1;
 
 -- "Existing shared Dev" (gets the legacy scripts)
 CREATE USER legacy_dev IDENTIFIED BY "&1" QUOTA UNLIMITED ON users;
--- "Your personal schema" (empty)
-CREATE USER devx_local IDENTIFIED BY "&1" QUOTA UNLIMITED ON users;
+-- "Your developer database" (empty)
+CREATE USER developer_db IDENTIFIED BY "&1" QUOTA UNLIMITED ON users;
 -- Read-only API user that receives grants
 CREATE USER app_reader IDENTIFIED BY "&1";
 
 GRANT CREATE SESSION, CREATE TABLE, CREATE VIEW, CREATE SEQUENCE,
       CREATE PROCEDURE, CREATE TRIGGER, CREATE TYPE, CREATE SYNONYM,
       CREATE MATERIALIZED VIEW
-   TO legacy_dev, devx_local;
+   TO legacy_dev, developer_db;
 GRANT CREATE SESSION TO app_reader;
 
 EXIT

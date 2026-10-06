@@ -17,7 +17,7 @@ which ones already ran.
 
 ```mermaid
 flowchart LR
-    A["✏️ Write SQL file<br/>in Git"] --> B["🧪 Test on my<br/>personal schema"]
+    A["✏️ Write SQL file<br/>in Git"] --> B["🧪 Test on my<br/>developer database"]
     B -->|works| C["👀 Pull request<br/>+ review"]
     B -->|fails| A
     C --> D["🚀 Run on<br/>shared Dev"]
@@ -28,7 +28,7 @@ Two databases are involved:
 
 | Database | Who uses it | Can be wiped? |
 |---|---|---|
-| **Personal schema** (`DEVX_<name>`) | Only you, for testing | Yes – `tools\db reset` |
+| **Developer database** (`DEVDB_<name>`) | Only you – test your SQL changes **and the application** against it | Yes – `tools\db reset` |
 | **Shared Dev** | Everyone, API + UI team | **Never** |
 
 ---
@@ -62,7 +62,7 @@ Done **once** by the DB lead, before the team starts the daily workflow.
 flowchart TD
     A["Copy old scripts into<br/>db/legacy/ (read-only)"] --> B["Write V1__initial_schema.sql<br/>tables, sequences, reference data"]
     B --> C["Create one R file per<br/>procedure / view / package / trigger / grant"]
-    C --> D["Test: build an EMPTY personal schema<br/>tools\db reset"]
+    C --> D["Test: build an EMPTY developer database<br/>tools\db reset"]
     D --> E{"Same as<br/>real Dev?"}
     E -->|no| B
     E -->|yes| F["Mark shared Dev as 'already at V1'<br/>tools\db baseline dev"]
@@ -74,7 +74,7 @@ flowchart TD
    data into `db/migrations/versioned/V1__initial_schema.sql`.
 3. **R files** – one file per code object (procedure, view, package, trigger,
    grant…), each written as `CREATE OR REPLACE`.
-4. **Prove it works on empty** – `tools\db reset` on your personal schema.
+4. **Prove it works on empty** – `tools\db reset` on your developer database.
    Compare the result with the real Dev database and fix any differences.
 5. **Baseline Dev** – `tools\db baseline dev`. This only *records* "V1 is done";
    it does not run V1 on Dev (the tables already exist there).
@@ -90,11 +90,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    S["1. git pull<br/>tools\db migrate personal"] --> T{"What am I<br/>changing?"}
+    S["1. git pull<br/>tools\db migrate developer"] --> T{"What am I<br/>changing?"}
     T -->|"table / column / data"| V["2a. tools\db new LOS-1234 description<br/>write SQL in the new V file"]
     T -->|"procedure / view / package..."| R["2b. Edit that object's R file"]
     T -->|"both"| B["2c. New V file + edit R file"]
-    V --> P["3. tools\db migrate personal<br/>test it"]
+    V --> P["3. tools\db migrate developer<br/>test it"]
     R --> P
     B --> P
     P -->|fails| F["Fix SQL<br/>tools\db reset if needed"] --> P
@@ -105,13 +105,14 @@ flowchart TD
 
 **Step by step**
 
-1. **Start fresh** – `git pull`, then `tools\db migrate personal`.
+1. **Start fresh** – `git pull`, then `tools\db migrate developer`.
    Create a branch: `git checkout -b LOS-1234-add-pan`.
 2. **Make the change**
    - Table/column/index/sequence/data → `tools\db new LOS-1234 add pan`, write the SQL.
    - Procedure/view/package/trigger/grant → edit its R file (new object → new R file).
-3. **Test on your personal schema** – `tools\db migrate personal`, then test the
-   behaviour. Before the pull request, also run `tools\db reset` once to prove
+3. **Test on your developer database** – `tools\db migrate developer`, then point
+   the application you run locally at it and test the feature
+   ([guide 3.6](DEVELOPER_GUIDE.md#36-test-the-application-against-your-developer-database)). Before the pull request, also run `tools\db reset` once to prove
    everything still builds from empty.
 4. **Pull request** – a reviewer checks the SQL using the checklist in the PR.
 5. **Deploy to shared Dev** – after merge, the DB lead runs
@@ -135,19 +136,19 @@ part of a file may already have run.
 | **An R file failed** | Fix the R file and run migrate again. No repair needed. |
 | **A merged V file ran fine but is wrong** | Do **not** edit it. Create a **new** V file that corrects it. |
 | **Invalid objects after migrate** | Fix the R file of the broken object (or the object it depends on) and migrate again. |
-| **"Checksum mismatch" / validate error on personal schema** | Someone changed a file you already ran. `tools\db reset`. |
+| **"Checksum mismatch" / validate error on developer database** | Someone changed a file you already ran. `tools\db reset`. |
 | **"Checksum mismatch" on shared Dev** | A merged V file was edited. Put the file back as it was and add a new V file instead. Ask the DB lead. |
 | **Someone changed Dev by hand** | Flyway does **not** notice this. Put the change into the R/V file in Git – otherwise the next edit of that R file silently removes it. |
 | **Drop / rename an object** | V file with a *guarded* `DROP` (skip if it does not exist – on an empty schema it never existed), and delete its R file in the same pull request. No repair needed. |
 
-Then always: **test the fix on your personal schema → review → apply to Dev.**
+Then always: **test the fix on your developer database → review → apply to Dev.**
 
 ---
 
 ## 6. The golden rules
 
 1. ✅ Every change is a file in Git. **No hand changes on shared Dev.**
-2. ✅ Test on your **personal schema** first. Shared Dev is never wiped.
+2. ✅ Test on your **developer database** first. Shared Dev is never wiped.
 3. ❌ **Never edit a merged V file.** Add a new one.
 4. ✅ **One R file per code object**, always `CREATE OR REPLACE`.
 5. ❌ **No passwords in Git.** Use the `FLYWAY_PASSWORD` environment variable.
@@ -162,9 +163,9 @@ Windows: `tools\db …`  Linux/Mac: `tools/db.sh …`
 | Command | What it does |
 |---|---|
 | `tools\db new LOS-1234 add pan` | Create a new V file with a timestamp |
-| `tools\db migrate personal` | Apply all pending changes to your schema |
-| `tools\db info personal` | List what has run and what is pending |
-| `tools\db reset` | Wipe **your personal** schema and rebuild from Git (refused on shared Dev) |
+| `tools\db migrate developer` | Apply all pending changes to your schema |
+| `tools\db info developer` | List what has run and what is pending |
+| `tools\db reset` | Wipe **your developer** database and rebuild from Git (refused on shared Dev) |
 | `tools\db migrate dev` | Apply to shared Dev (**DB lead, from main**) |
 | `tools\db validate dev` | Check Git files still match what ran on Dev |
 | `tools\db baseline dev` | One-time setup only |

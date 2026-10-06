@@ -13,6 +13,7 @@ See [section 11](#11-practice-lab-and-test-results) for the test results.
 |---|---|
 | Understand the idea quickly | [1](#1-why-we-are-doing-this) · [2](#2-the-key-ideas-in-5-minutes) |
 | Set up your laptop | [3](#3-set-up-your-machine-once) |
+| Test the application on your own database | [3.6](#36-test-the-application-against-your-developer-database) |
 | Move a legacy schema to this process (DB lead) | [4](#4-adopting-it-for-the-team-db-lead) |
 | Make a change today | [5](#5-daily-workflow) · [6](#6-which-file-do-i-need) · [7](#7-worked-examples) |
 | Fix an error | [8](#8-when-things-go-wrong) |
@@ -65,7 +66,8 @@ A few more words you will see:
 | **Checksum** | Fingerprint of a file. If a V file that already ran is edited, the checksum changes and Flyway stops (*checksum mismatch*) |
 | **Baseline** | One-time step for an *existing* database: "this schema already has V1, don't run it" |
 | **Callback** | SQL that runs automatically – ours (`db/callbacks/afterMigrate__check_invalid.sql`) recompiles and fails if any object is INVALID |
-| **Environment** | A database we deploy to, defined by `conf/env/<name>.conf` (`personal`, `dev`, later `qa`, `uat`, `prod`) |
+| **Environment** | A database we deploy to, defined by `conf/env/<name>.conf` (`developer`, `dev`, later `qa`, `uat`, `prod`) |
+| **Developer database** | Your own schema (`DEVDB_<name>`), built from Git, where you test your SQL changes **and the application** before anything reaches shared Dev |
 
 ---
 
@@ -86,22 +88,22 @@ git clone https://github.com/shende12rahul2/schema-versioning.git
 cd schema-versioning
 ```
 
-### 3.3 Point it at your personal schema
+### 3.3 Point it at your developer database
 
-Ask the DB lead for a personal schema (e.g. `DEVX_RSHENDE`). Then:
+Ask the DB lead for a developer database (e.g. `DEVDB_RSHENDE`). Then:
 
 ```bat
-copy conf\env\personal.conf.example conf\env\personal.conf
-notepad conf\env\personal.conf
+copy conf\env\developer.conf.example conf\env\developer.conf
+notepad conf\env\developer.conf
 ```
 
 ```properties
 flyway.url=jdbc:oracle:thin:@//DEV-DB-HOST:1521/DEVSERVICE
-flyway.user=DEVX_RSHENDE
+flyway.user=DEVDB_RSHENDE
 flyway.cleanDisabled=false
 ```
 
-`personal.conf` is in `.gitignore` – it is never committed.
+`developer.conf` is in `.gitignore` – it is never committed.
 
 ### 3.4 Password – never in Git
 
@@ -113,15 +115,45 @@ set FLYWAY_PASSWORD=your_password
 
 (Linux/Mac/Git Bash: `export FLYWAY_PASSWORD=your_password`)
 
-### 3.5 Build your personal schema and check it
+### 3.5 Build your developer database and check it
 
 ```bat
 tools\db reset
-tools\db info personal
+tools\db info developer
 ```
 
-`reset` wipes your personal schema and rebuilds it from Git. All rows in
+`reset` wipes your developer database and rebuilds it from Git. All rows in
 `info` should say **Success**. You are ready.
+
+### 3.6 Test the application against your developer database
+
+Your developer database is **your own copy of the application's database**: it
+has the same tables, code and reference data as shared Dev plus your unmerged
+changes, and nobody else uses it. Use it to test the API / UI with your change
+before anyone else sees it.
+
+1. **Build it and add test data** (a fresh build has no test data):
+   ```bat
+   tools\db reset
+   ```
+   then run [`db/testdata/load_testdata.sql`](../db/testdata/README.md) in SQL Developer (F5).
+2. **Point the application you run locally at it** – in the application's local
+   settings (for example `application-local.properties` / `.env`), change only
+   the database connection:
+   ```properties
+   db.url=jdbc:oracle:thin:@//DEV-DB-HOST:1521/DEVSERVICE
+   db.username=DEVDB_RSHENDE
+   db.password=<your password>
+   ```
+   Never commit these settings.
+3. **Test the feature** end to end (screens, API calls, reports).
+4. **Change SQL → `tools\db migrate developer` → test again.** If the
+   database gets into a strange state, `tools\db reset` and reload the test data –
+   it takes seconds and affects nobody else.
+
+> If the application normally logs in as a separate user (like `APP_READER`),
+> ask the DB lead for a matching user on your developer database, or connect as
+> the schema owner for local testing.
 
 > **New to this?** Do the [practice lab](../local/README.md) first – it needs
 > only Docker and takes about an hour.
@@ -194,7 +226,7 @@ Build an **empty** schema from Git and compare it with the real Dev schema.
 In the lab this is:
 
 ```bat
-tools\db reset local-personal
+tools\db reset local-developer
 local\lab compare
 ```
 
@@ -253,9 +285,9 @@ the normal V/R files – never by hand.
 
 ```mermaid
 flowchart TD
-    S["1 git pull<br/>tools\db migrate personal"] --> B["2 git checkout -b LOS-2001-dob"]
+    S["1 git pull<br/>tools\db migrate developer"] --> B["2 git checkout -b LOS-2001-dob"]
     B --> C["3 Write / edit SQL files"]
-    C --> T["4 tools\db migrate personal<br/>+ test behaviour"]
+    C --> T["4 tools\db migrate developer<br/>+ test behaviour"]
     T -->|error| C
     T -->|ok| R["5 tools\db reset<br/>(prove fresh build)"]
     R --> P["6 Commit, push, pull request"]
@@ -268,7 +300,7 @@ flowchart TD
 :: 1 - start from the latest main
 git checkout main
 git pull
-tools\db migrate personal
+tools\db migrate developer
 
 :: 2 - branch per ticket
 git checkout -b LOS-2001-customer-dob
@@ -278,7 +310,7 @@ tools\db new LOS-2001 add customer dob
 ::     ... or edit/create the R file of the object (procedure/view/package/...)
 
 :: 4 - apply to your schema and test
-tools\db migrate personal
+tools\db migrate developer
 
 :: 5 - before the pull request: prove a fresh build still works
 tools\db reset
@@ -305,7 +337,7 @@ tools\db migrate dev
 | `tools\db migrate <env>` | apply pending changes |
 | `tools\db info <env>` | see what ran / what is pending |
 | `tools\db validate <env>` | check Git files against what ran |
-| `tools\db reset [env]` | wipe & rebuild a **personal** schema (refused on shared ones) |
+| `tools\db reset [env]` | wipe & rebuild a **developer** database (refused on shared ones) |
 | `tools\db baseline <env>` | one-time: mark an existing database as "at V1" |
 | `tools\db repair <env>` | only after a failed V file ([8.1](#81-a-v-file-failed-half-way)) |
 
@@ -333,7 +365,7 @@ tools\db migrate dev
 
 All examples continue the LOS schema from `db/legacy/`. In the lab, load each
 one with `local\lab apply NN` (after scenario 01) and run
-`tools\db migrate local-personal` and `tools\db migrate local-dev`.
+`tools\db migrate local-developer` and `tools\db migrate local-dev`.
 
 ### 7.1 Add a column
 *Lab: `local\lab apply 12`* · Ticket LOS-2001: store the customer's date of birth.
@@ -351,11 +383,11 @@ ALTER TABLE customer ADD (date_of_birth DATE);
 ```
 
 ```text
-> tools\db migrate personal
-Migrating schema "DEVX_LOCAL" to version "20261101090000 - LOS2001 add customer dob"
-Successfully applied 1 migration to schema "DEVX_LOCAL", now at version v20261101090000
+> tools\db migrate developer
+Migrating schema "DEVELOPER_DB" to version "20261101090000 - LOS2001 add customer dob"
+Successfully applied 1 migration to schema "DEVELOPER_DB", now at version v20261101090000
 ```
-Run it again: `Schema "DEVX_LOCAL" is up to date` – a V file never runs twice.
+Run it again: `Schema "DEVELOPER_DB" is up to date` – a V file never runs twice.
 
 ### 7.2 Change a procedure
 *Lab: `local\lab apply 13`* · LOS-2002: `ADD_CUSTOMER` also accepts e-mail and date of birth.
@@ -384,8 +416,8 @@ END add_customer;
 ```
 
 ```text
-Migrating schema "DEVX_LOCAL" with repeatable migration "20 procedure add customer"
-Successfully applied 1 migration to schema "DEVX_LOCAL"
+Migrating schema "DEVELOPER_DB" with repeatable migration "20 procedure add customer"
+Successfully applied 1 migration to schema "DEVELOPER_DB"
 ```
 Only the changed R file ran. New parameters have defaults, so existing callers keep working.
 
@@ -426,9 +458,9 @@ and to the body `R__40_package_body_loan_pkg.sql`:
 ```
 
 ```text
-Migrating schema "DEVX_LOCAL" to version "20261102090000 - LOS2003 create loan document"
-Migrating schema "DEVX_LOCAL" with repeatable migration "10 package spec loan pkg"
-Migrating schema "DEVX_LOCAL" with repeatable migration "40 package body loan pkg"
+Migrating schema "DEVELOPER_DB" to version "20261102090000 - LOS2003 create loan document"
+Migrating schema "DEVELOPER_DB" with repeatable migration "10 package spec loan pkg"
+Migrating schema "DEVELOPER_DB" with repeatable migration "40 package body loan pkg"
 Successfully applied 3 migrations
 ```
 The V file (table) always runs **before** the R files that use it.
@@ -477,8 +509,8 @@ ALTER TABLE customer RENAME COLUMN mobile TO mobile_no;
 **What happens if you forget the procedure that uses the column** (real output):
 
 ```text
-Migrating schema "DEVX_LOCAL" to version "20261104090000 - LOS2006 rename mobile to mobile no"
-Successfully applied 1 migration to schema "DEVX_LOCAL"
+Migrating schema "DEVELOPER_DB" to version "20261104090000 - LOS2006 rename mobile to mobile no"
+Successfully applied 1 migration to schema "DEVELOPER_DB"
 ERROR: Error while executing afterMigrate callback: Failed to execute script afterMigrate__check_invalid.sql
 Message    : ORA-20001: 1 invalid object(s) after migrate (first 20 shown):
   PROCEDURE ADD_CUSTOMER
@@ -572,9 +604,9 @@ file fails half-way, **the statements before the error have already happened**.
 *Lab: scenario 06*
 
 ```text
-Migrating schema "DEVX_LOCAL" to version "20261009100000 - LOS1400 add kyc status"
-ERROR: Migration of schema "DEVX_LOCAL" to version "20261009100000 - LOS1400 add kyc status" failed!
-Message    : ORA-00942: table or view "DEVX_LOCAL"."CUSTOMER_TYPO" does not exist
+Migrating schema "DEVELOPER_DB" to version "20261009100000 - LOS1400 add kyc status"
+ERROR: Migration of schema "DEVELOPER_DB" to version "20261009100000 - LOS1400 add kyc status" failed!
+Message    : ORA-00942: table or view "DEVELOPER_DB"."CUSTOMER_TYPO" does not exist
 Line       : 7
 ```
 `info` shows **Failed**, the column from line 5 **was added**, and every later
@@ -587,7 +619,7 @@ Line       : 7
 
 If it failed on **shared Dev**: the DB lead does steps 1, 3, 4; the fix goes
 through a pull request; developers who already ran the broken file on their
-personal schema run `tools\db reset`.
+developer database run `tools\db reset`.
 
 ### 8.2 "Migration checksum mismatch"
 *Lab: scenario 07*
@@ -602,7 +634,7 @@ Someone edited a V file that already ran. **Revert the file** to how it was
 Do **not** follow Flyway's "or run repair" hint – that would hide the edit and
 leave databases different from Git.
 
-On your personal schema only, if *you* edited your own unmerged V file: just `tools\db reset`.
+On your developer database only, if *you* edited your own unmerged V file: just `tools\db reset`.
 
 ### 8.3 "invalid object(s) after migrate"
 *Lab: scenario 08 and example 7.6*
@@ -670,7 +702,7 @@ same object in conflicting ways – that is what review is for.
 
 ### 8.9 Two people changed the same R file
 Git shows a merge conflict in the R file. Resolve it so the file contains
-**both** changes, test on your personal schema, and push. Because an R file
+**both** changes, test on your developer database, and push. Because an R file
 always holds the whole object, the result is easy to review.
 
 ### 8.10 "Unable to execute clean as it has been disabled"
@@ -690,7 +722,7 @@ The template asks reviewers to confirm:
 - [ ] New objects the API needs have grants ([7.9](#79-grant-access-to-a-new-object))
 - [ ] Data changes are safe to run on any database (MERGE / WHERE), no test data
 - [ ] No passwords, no `COMMIT`/`EXIT`/`SET`/`PROMPT`
-- [ ] Author ran `tools\db migrate personal` **and** a full `tools\db reset`
+- [ ] Author ran `tools\db migrate developer` **and** a full `tools\db reset`
 
 ---
 
@@ -698,7 +730,7 @@ The template asks reviewers to confirm:
 
 **Golden rules**
 1. Every change is a file in Git. No hand changes on shared databases.
-2. Test on your personal schema first; shared Dev is never wiped.
+2. Test on your developer database first; shared Dev is never wiped.
 3. Never edit or delete a merged V file.
 4. One R file per code object, always `CREATE OR REPLACE`.
 5. No passwords in Git – use `FLYWAY_PASSWORD`.
@@ -721,7 +753,7 @@ Always create V files with `tools\db new` – it puts in the timestamp for you.
 
 The [local practice lab](../local/README.md) runs Oracle 23 Free in Docker with
 two schemas: `LEGACY_DEV` (playing shared Dev, loaded from `db/legacy/`) and an
-empty `DEVX_LOCAL` (playing your personal schema).
+empty `DEVELOPER_DB` (playing your developer database).
 
 ```bat
 local\lab up
@@ -744,7 +776,7 @@ set FLYWAY_PASSWORD=Lab_Passw0rd
 | 12–22 | Every example in section 7 (incl. forgotten procedure update and lost trigger) | ✅ |
 | – | `reset` refused on shared Dev | ✅ |
 
-**67 automated checks passed** on a fresh lab (Oracle 23 Free, Flyway 13.9.0 via
+**68 automated checks passed** on a fresh lab (Oracle 23 Free, Flyway 13.9.0 via
 Docker, no Flyway installed locally). Maintainers can repeat the whole run:
 
 ```bash
@@ -756,7 +788,7 @@ local/test-all-scenarios.sh      # Linux, Mac or Git Bash; about 5 minutes
 ## 12. FAQ
 
 **Can I still run scripts in SQL Developer?**
-On your personal schema, yes – to experiment. But the change only "exists" once
+On your developer database, yes – to experiment. But the change only "exists" once
 it is a file in Git, and you should `tools\db reset` afterwards so your schema
 matches Git again.
 

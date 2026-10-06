@@ -55,7 +55,7 @@ exit /b %ERRORLEVEL%
 
 :reset
 set "RENV=%~2"
-if "%RENV%"=="" set "RENV=personal"
+if "%RENV%"=="" set "RENV=developer"
 echo This WIPES the %RENV% schema and rebuilds it from Git.
 call :flyway %RENV% clean || exit /b 1
 call :flyway %RENV% migrate
@@ -88,7 +88,7 @@ set "ENVNAME=%~1"
 set "CONF=conf\env\%ENVNAME%.conf"
 if not exist "%CONF%" (
   echo ERROR: %CONF% not found.
-  if /i "%ENVNAME%"=="personal" echo Copy conf\env\personal.conf.example to conf\env\personal.conf first.
+  if /i "%ENVNAME%"=="developer" echo Copy conf\env\developer.conf.example to conf\env\developer.conf first.
   exit /b 1
 )
 echo ^>^> Environment: %ENVNAME%
@@ -116,11 +116,11 @@ exit /b !ERRORLEVEL!
 echo Usage: tools\db ^<command^> [args]
 echo.
 echo   new ^<TICKET^> ^<description^>   Create a new versioned (V) file with a timestamp
-echo   migrate ^<env^>                Apply pending changes (env = personal ^| dev ^| ...)
+echo   migrate ^<env^>                Apply pending changes (env = developer ^| dev ^| ...)
 echo   info ^<env^>                   Show what has run and what is pending
 echo   validate ^<env^>               Check Git files against what already ran
-echo   reset [env]                  PERSONAL schema only: wipe it and rebuild from Git
-echo                                (env defaults to "personal"; shared envs refuse)
+echo   reset [env]                  DEVELOPER database only: wipe it and rebuild from Git
+echo                                (env defaults to "developer"; shared envs refuse)
 echo   baseline ^<env^>               ONE TIME, existing database: mark it as "already at V1"
 echo   repair ^<env^>                 Fix the history table after a failed run (see docs)
 echo.

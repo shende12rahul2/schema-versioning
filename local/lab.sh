@@ -17,13 +17,13 @@ Usage: local/lab.sh <command>
   up                    Start the lab database (first start loads db/legacy, ~2-5 min)
   down                  Stop the lab and DELETE its data (next "up" starts fresh)
   status                Show whether the lab database is running
-  sql <schema> [file]   Open SQL*Plus as legacy_dev | devx_local | system
+  sql <schema> [file]   Open SQL*Plus as legacy_dev | developer_db | system
                         (or run a .sql file)
-  compare               Compare LEGACY_DEV ("shared Dev") with DEVX_LOCAL ("fresh install")
+  compare               Compare LEGACY_DEV ("shared Dev") with DEVELOPER_DB ("fresh install")
   apply <NN> [fix]      Copy scenario NN's files into db/migrations (see local/README.md)
   restore               Put db/migrations back exactly as it is in Git
 
-For Flyway commands use tools/db.sh with env local-dev or local-personal,
+For Flyway commands use tools/db.sh with env local-dev or local-developer,
 after: export FLYWAY_PASSWORD=Lab_Passw0rd
 TXT
 }
@@ -47,7 +47,7 @@ case "$cmd" in
       fi
       sleep 5
     done
-    echo "Lab is ready. LEGACY_DEV has the legacy schema, DEVX_LOCAL is empty."
+    echo "Lab is ready. LEGACY_DEV has the legacy schema, DEVELOPER_DB is empty."
     ;;
   down)
     $COMPOSE down -v
@@ -56,7 +56,7 @@ case "$cmd" in
     $COMPOSE ps
     ;;
   sql)
-    [[ $# -ge 1 ]] || { echo "Usage: local/lab.sh sql <legacy_dev|devx_local|system> [file]" >&2; exit 1; }
+    [[ $# -ge 1 ]] || { echo "Usage: local/lab.sh sql <legacy_dev|developer_db|system> [file]" >&2; exit 1; }
     if [[ $# -ge 2 ]]; then
       docker exec -i "$CONTAINER" sqlplus -s -L "$1/$PW@$CONN" < "$2"
     elif [[ -t 0 ]]; then

@@ -12,11 +12,11 @@ usage() {
 Usage: tools/db.sh <command> [args]
 
   new <TICKET> <description>   Create a new versioned (V) file with a timestamp
-  migrate <env>                Apply pending changes (env = personal | dev | ...)
+  migrate <env>                Apply pending changes (env = developer | dev | ...)
   info <env>                   Show what has run and what is pending
   validate <env>               Check Git files against what already ran
-  reset [env]                  PERSONAL schema only: wipe it and rebuild from Git
-                               (env defaults to "personal"; shared envs refuse)
+  reset [env]                  DEVELOPER database only: wipe it and rebuild from Git
+                               (env defaults to "developer"; shared envs refuse)
   baseline <env>               ONE TIME, existing database: mark it as "already at V1"
   repair <env>                 Fix the history table after a failed run (see docs)
 
@@ -30,7 +30,7 @@ flyway_for() {
   local conf="conf/env/${env}.conf"
   if [[ ! -f "$conf" ]]; then
     echo "ERROR: $conf not found." >&2
-    [[ "$env" == "personal" ]] && echo "Copy conf/env/personal.conf.example to conf/env/personal.conf first." >&2
+    [[ "$env" == "developer" ]] && echo "Copy conf/env/developer.conf.example to conf/env/developer.conf first." >&2
     exit 1
   fi
   echo ">> Environment: $env"
@@ -70,7 +70,7 @@ SQL
     flyway_for "$1" "$cmd"
     ;;
   reset)
-    env="${1:-personal}"
+    env="${1:-developer}"
     echo "This WIPES the $env schema and rebuilds it from Git."
     flyway_for "$env" clean
     flyway_for "$env" migrate

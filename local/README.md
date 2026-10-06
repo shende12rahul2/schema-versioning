@@ -7,7 +7,7 @@ The lab is **one Oracle database in Docker** with two schemas:
 | Lab schema | Plays the role of | Flyway env | Starts as |
 |---|---|---|---|
 | `LEGACY_DEV` | the existing **shared Dev** database | `local-dev` | loaded from [`db/legacy/`](../db/legacy/README.md) (tables, code, test data) |
-| `DEVX_LOCAL` | **your personal schema** | `local-personal` | empty |
+| `DEVELOPER_DB` | **your developer database** | `local-developer` | empty |
 
 Plus `APP_READER`, a read-only API user that receives grants.
 
@@ -47,8 +47,8 @@ Useful commands during the lab:
 
 | Command | What it does |
 |---|---|
-| `local\lab sql legacy_dev` | SQL*Plus on "shared Dev" (also `devx_local`, `system`) |
-| `local\lab compare` | Differences between "shared Dev" and your "personal schema" |
+| `local\lab sql legacy_dev` | SQL*Plus on "shared Dev" (also `developer_db`, `system`) |
+| `local\lab compare` | Differences between "shared Dev" and your "developer database" |
 | `local\lab apply 03` | Copy scenario 03's files into `db\migrations\` |
 | `local\lab apply 06 fix` | Copy the **fixed** files of scenario 06 |
 | `local\lab restore` | Put `db\migrations\` back as it is in Git |
@@ -94,10 +94,10 @@ makes Git the owner of all code objects.
 *Prove that V1 + R files build the same database from nothing.*
 
 ```bat
-tools\db reset local-personal
+tools\db reset local-developer
 local\lab compare
 ```
-`DEVX_LOCAL` is built from Git: V1 first, then all R files.
+`DEVELOPER_DB` is built from Git: V1 first, then all R files.
 `compare` should show **no rows** in sections 1–5, and the same grants in 6.
 
 Try it: in `local\lab compare`, why does the legacy `CUSTOMER.EMAIL` column
@@ -112,7 +112,7 @@ Test data (`10_sample_data.sql`) is not part of V1.
 
 ```bat
 local\lab apply 03
-tools\db migrate local-personal
+tools\db migrate local-developer
 tools\db migrate local-dev
 tools\db info local-dev
 ```
@@ -125,14 +125,14 @@ In real work you create the file with `tools\db new LOS-1234 add pan to customer
 
 ```bat
 local\lab apply 04
-tools\db migrate local-personal
-tools\db info local-personal
+tools\db migrate local-developer
+tools\db info local-developer
 ```
 Only `R__20_procedure_add_customer.sql` ran again (it changed). The other
 R files did not run. Try the new parameter:
 
 ```bat
-local\lab sql devx_local
+local\lab sql developer_db
 SQL> VARIABLE id NUMBER
 SQL> EXEC add_customer('Neha Joshi', '9800000003', :id, 'ABCDE1234F');
 SQL> SELECT customer_id, full_name, pan_number FROM customer;
@@ -144,8 +144,8 @@ Then `tools\db migrate local-dev`.
 
 ```bat
 local\lab apply 05
-tools\db migrate local-personal
-tools\db info local-personal
+tools\db migrate local-developer
+tools\db info local-developer
 ```
 New column `LOAN_APPLICATION.BRANCH_CODE` (V file) **first**, then the
 changed view `V_LOAN_SUMMARY` that uses it (R file). Then `tools\db migrate local-dev`.
@@ -156,14 +156,14 @@ changed view `V_LOAN_SUMMARY` that uses it (R file). Then `tools\db migrate loca
 
 ```bat
 local\lab apply 06
-tools\db migrate local-personal
+tools\db migrate local-developer
 ```
 ❌ Fails: `ORA-00942: table or view does not exist` (`customer_typo`).
 
 Look at the damage:
 ```bat
-tools\db info local-personal
-local\lab sql devx_local
+tools\db info local-developer
+local\lab sql developer_db
 SQL> DESC customer
 SQL> exit
 ```
@@ -171,10 +171,10 @@ SQL> exit
 does not roll back DDL. Recover:
 
 ```bat
-local\lab sql devx_local local\scenarios\06_failed_v_file\undo_partial_change.sql
+local\lab sql developer_db local\scenarios\06_failed_v_file\undo_partial_change.sql
 local\lab apply 06 fix
-tools\db repair local-personal
-tools\db migrate local-personal
+tools\db repair local-developer
+tools\db migrate local-developer
 ```
 1. undo what already ran, 2. fix the V file (allowed – it never succeeded),
 3. `repair` removes the *Failed* row, 4. run again.
@@ -186,7 +186,7 @@ Then `tools\db migrate local-dev` (the fixed file runs cleanly there).
 
 ```bat
 local\lab apply 07
-tools\db migrate local-personal
+tools\db migrate local-developer
 ```
 ❌ Fails: *"Migration checksum mismatch for migration version 20261007100000"*.
 Flyway protects you: that file already ran everywhere, editing it changes nothing
@@ -195,7 +195,7 @@ in the databases but makes Git lie.
 Fix: put the file back, and make a **new** V file if a change is really needed.
 ```bat
 local\lab apply 03
-tools\db validate local-personal
+tools\db validate local-developer
 ```
 
 ✅ **Learned:** never edit a merged V file.
@@ -204,7 +204,7 @@ tools\db validate local-personal
 
 ```bat
 local\lab apply 08
-tools\db migrate local-personal
+tools\db migrate local-developer
 ```
 ❌ The view is created (Flyway only prints *"Warning: execution completed with
 warning (… Error Code: 17110)"* – Oracle's way of saying "created with
@@ -213,7 +213,7 @@ compilation errors"), but the automatic check after the run stops it:
 
 ```bat
 local\lab apply 08 fix
-tools\db migrate local-personal
+tools\db migrate local-developer
 ```
 The corrected R file runs again and the check passes. Broken code never reaches Dev.
 
@@ -231,7 +231,7 @@ Git is now wrong, and the next edit of that R file would silently remove the han
 Fix: put the change into Git.
 ```bat
 local\lab apply 09 fix
-tools\db migrate local-personal
+tools\db migrate local-developer
 tools\db migrate local-dev
 local\lab compare
 ```
@@ -244,7 +244,7 @@ Section 4 is empty again.
 ```bat
 local\lab apply 10
 tools\db migrate local-dev
-tools\db reset local-personal
+tools\db reset local-developer
 local\lab compare
 ```
 `apply 10` adds a V file with a **guarded** `DROP FUNCTION get_customer_name`
@@ -267,7 +267,7 @@ files that already ran. It still runs once and `info` marks it **Out of Order**.
 That is normal with several developers.
 
 ```bat
-tools\db reset local-personal
+tools\db reset local-developer
 local\lab compare
 ```
 A fresh install runs it in timestamp order and gives the same result.
@@ -280,7 +280,7 @@ explains each one. Run them after scenario 11 (or after 01 on a fresh lab), in o
 
 ```bat
 local\lab apply 12
-tools\db migrate local-personal
+tools\db migrate local-developer
 tools\db migrate local-dev
 ```
 
@@ -291,7 +291,7 @@ tools\db migrate local-dev
 | 14 | New table + package procedure (V + R) | |
 | 15 | Reference data with `MERGE` (V) | |
 | 16 | New view (new R) | |
-| 17 | Rename a column (V) | personal migrate **fails** (procedure INVALID) → `local\lab apply 17 fix` |
+| 17 | Rename a column (V) | developer database migrate **fails** (procedure INVALID) → `local\lab apply 17 fix` |
 | 18 | Add an index (V) | |
 | 19 | One-time data fix (V) | first: `local\lab sql legacy_dev local\scenarios\19_data_fix\add_messy_numbers.sql` |
 | 20 | Grant on the new view (R) | |
@@ -305,7 +305,7 @@ tools\db migrate local-dev
 ```bash
 local/test-all-scenarios.sh
 ```
-Runs scenarios 01–22 on a fresh lab and checks every result (67 checks, about
+Runs scenarios 01–22 on a fresh lab and checks every result (68 checks, about
 5 minutes; Linux, Mac or Git Bash). It deletes the lab data and resets
 `db/migrations/` to Git.
 

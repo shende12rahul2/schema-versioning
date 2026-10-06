@@ -1,0 +1,7 @@
+# Your developer database: your own schema where you build from Git and test the application.
+# Copy this file to conf/env/developer.conf (it is git-ignored) and fill it in.
+# Password: set FLYWAY_PASSWORD before running. Never commit it.
+flyway.url=jdbc:oracle:thin:@//DEV-DB-HOST:1521/DEVSERVICE
+flyway.user=DEVDB_YOURNAME
+# Developer databases may be wiped and rebuilt with "tools\db reset".
+flyway.cleanDisabled=false

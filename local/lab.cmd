@@ -32,7 +32,7 @@ docker logs %CONTAINER% 2>&1 | findstr /B /C:"ORA-" /C:"SP2-" >nul && (
 timeout /t 5 /nobreak >nul
 goto :waitloop
 :ready
-echo Lab is ready. LEGACY_DEV has the legacy schema, DEVX_LOCAL is empty.
+echo Lab is ready. LEGACY_DEV has the legacy schema, DEVELOPER_DB is empty.
 exit /b 0
 
 :down
@@ -45,7 +45,7 @@ exit /b %ERRORLEVEL%
 
 :sql
 if "%~2"=="" (
-  echo Usage: local\lab sql ^<legacy_dev^|devx_local^|system^> [file]
+  echo Usage: local\lab sql ^<legacy_dev^|developer_db^|system^> [file]
   exit /b 1
 )
 if "%~3"=="" (
@@ -101,11 +101,11 @@ echo.
 echo   up                    Start the lab database (first start loads db\legacy, 2-5 min)
 echo   down                  Stop the lab and DELETE its data (next "up" starts fresh)
 echo   status                Show whether the lab database is running
-echo   sql ^<schema^> [file]   Open SQL*Plus as legacy_dev ^| devx_local ^| system (or run a file)
-echo   compare               Compare LEGACY_DEV ("shared Dev") with DEVX_LOCAL ("fresh install")
+echo   sql ^<schema^> [file]   Open SQL*Plus as legacy_dev ^| developer_db ^| system (or run a file)
+echo   compare               Compare LEGACY_DEV ("shared Dev") with DEVELOPER_DB ("fresh install")
 echo   apply ^<NN^> [fix]      Copy scenario NN's files into db\migrations (see local\README.md)
 echo   restore               Put db\migrations back exactly as it is in Git
 echo.
-echo For Flyway commands use tools\db with env local-dev or local-personal,
+echo For Flyway commands use tools\db with env local-dev or local-developer,
 echo after: set FLYWAY_PASSWORD=Lab_Passw0rd
 exit /b 0

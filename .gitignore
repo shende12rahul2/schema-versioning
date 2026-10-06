@@ -1,5 +1,5 @@
-# Personal settings and anything with credentials
-conf/env/personal.conf
+# Developer database settings and anything with credentials
+conf/env/developer.conf
 *.local.conf
 .env
 
