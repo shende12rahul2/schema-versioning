@@ -1,0 +1,8 @@
+# Personal settings and anything with credentials
+conf/env/personal.conf
+*.local.conf
+.env
+
+# Run logs
+logs/
+*.log
