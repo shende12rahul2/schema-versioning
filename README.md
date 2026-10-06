@@ -4,7 +4,8 @@ All changes to our Oracle database are SQL files in this repository.
 [Flyway](https://documentation.red-gate.com/flyway) runs them and remembers what already ran.
 
 👉 **Start here: [docs/WORKFLOW.md](docs/WORKFLOW.md)** – the full workflow with diagrams.
-🧪 **Practise it: [local/README.md](local/README.md)** – a local Oracle in Docker with an example legacy schema and 11 step-by-step scenarios.
+📘 **Details: [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md)** – machine setup, team rollout, 11 worked examples, troubleshooting.
+🧪 **Practise it: [local/README.md](local/README.md)** – a local Oracle in Docker with an example legacy schema and 22 step-by-step scenarios.
 
 ## In 30 seconds
 
@@ -31,6 +32,7 @@ tools/
   db.cmd  (Windows)  /  db.sh  (Linux/Mac)   simple commands around Flyway
 docs/
   WORKFLOW.md                  how we work – read this first
+  DEVELOPER_GUIDE.md           detailed guide with examples
 local/
   docker-compose.yml           local Oracle for practice
   lab.cmd / lab.sh             start the lab, open SQL, compare schemas, load scenarios
@@ -39,7 +41,7 @@ local/
 
 ## First-time setup on your machine
 
-1. Install [Flyway CLI](https://documentation.red-gate.com/flyway/getting-started-with-flyway) and put it on your `PATH`.
+1. Install Docker Desktop (Flyway then runs from Docker), or the [Flyway CLI](https://documentation.red-gate.com/flyway/getting-started-with-flyway) on your `PATH`.
 2. Copy `conf/env/personal.conf.example` → `conf/env/personal.conf` and fill in your schema name.
 3. `set FLYWAY_PASSWORD=...` (Windows) or `export FLYWAY_PASSWORD=...` (Linux/Mac).
 4. `tools\db reset` – builds your personal schema from Git.

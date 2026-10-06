@@ -16,7 +16,7 @@ Plus `APP_READER`, a read-only API user that receives grants.
 ## What you need
 
 - **Docker Desktop** (running)
-- **Flyway CLI** on your `PATH` ([download](https://documentation.red-gate.com/flyway/getting-started-with-flyway) – the Windows zip includes Java)
+- *Optional:* **Flyway CLI** on your `PATH`. Without it, `tools\db` runs Flyway from the `flyway/flyway` Docker image automatically.
 - About 3 GB of free disk space
 
 All lab passwords are `Lab_Passw0rd` (local container only, never use it anywhere else).
@@ -271,6 +271,43 @@ tools\db reset local-personal
 local\lab compare
 ```
 A fresh install runs it in timestamp order and gives the same result.
+
+### 12–22 · Everyday changes
+
+These are the worked examples from the
+[Developer Guide, section 7](../docs/DEVELOPER_GUIDE.md#7-worked-examples) – the guide
+explains each one. Run them after scenario 11 (or after 01 on a fresh lab), in order:
+
+```bat
+local\lab apply 12
+tools\db migrate local-personal
+tools\db migrate local-dev
+```
+
+| # | Change | Extra step |
+|---|---|---|
+| 12 | Add a column (V) | |
+| 13 | Change a procedure (R) | |
+| 14 | New table + package procedure (V + R) | |
+| 15 | Reference data with `MERGE` (V) | |
+| 16 | New view (new R) | |
+| 17 | Rename a column (V) | personal migrate **fails** (procedure INVALID) → `local\lab apply 17 fix` |
+| 18 | Add an index (V) | |
+| 19 | One-time data fix (V) | first: `local\lab sql legacy_dev local\scenarios\19_data_fix\add_messy_numbers.sql` |
+| 20 | Grant on the new view (R) | |
+| 21 | New trigger (new R) | |
+| 22 | Rebuild a table (V) | trigger + grant are **silently lost** → `local\lab apply 22 fix` brings them back |
+
+---
+
+## Test everything automatically (maintainers)
+
+```bash
+local/test-all-scenarios.sh
+```
+Runs scenarios 01–22 on a fresh lab and checks every result (67 checks, about
+5 minutes; Linux, Mac or Git Bash). It deletes the lab data and resets
+`db/migrations/` to Git.
 
 ---
 

@@ -4,6 +4,9 @@
 shared database by hand. A tool (Flyway) runs the files for us and remembers
 which ones already ran.
 
+> 📘 **Need more detail?** The [Developer Guide](DEVELOPER_GUIDE.md) covers machine
+> setup, the team rollout, 11 worked examples and real error messages.
+>
 > 🧪 **Want to try it first?** The [local practice lab](../local/README.md) runs an
 > Oracle database in Docker with an example legacy schema and walks you through
 > every scenario below (onboarding, new changes, failures, recovery).

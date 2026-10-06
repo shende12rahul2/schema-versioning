@@ -110,6 +110,37 @@ db migrate local-dev;      check "late file runs out of order"     0 "out of ord
 db reset local-personal;   check "fresh install includes it"       0 "Successfully applied 13 migrations" $?
 clean_compare
 
+echo "== 12-22 everyday examples (docs/DEVELOPER_GUIDE.md)"
+both() { db migrate local-personal; check "$1 (personal)" 0 "$2" $?; db migrate local-dev; check "$1 (dev)" 0 "$2" $?; }
+lab apply 12; both "12 add column"              "add customer dob"
+lab apply 13; both "13 change procedure"        "20 procedure add customer"
+lab apply 14; both "14 new table + package"     "Successfully applied 3 migrations"
+lab apply 15; both "15 reference data (MERGE)"  "add status on hold"
+lab apply 16; both "16 new view"                "30 view v customer loans"
+lab apply 17
+db migrate local-personal; check "17 rename without procedure fails" 1 "PROCEDURE ADD_CUSTOMER" $?
+lab apply 17 fix
+both "17 rename + procedure"                    "20 procedure add customer"
+lab apply 18; both "18 add index"               "index loan status"
+lab sql legacy_dev local/scenarios/19_data_fix/add_messy_numbers.sql
+check "19 messy numbers added" 0 "98 000 00011" $?
+lab apply 19; both "19 data fix"                "clean mobile numbers"
+echo "SELECT COUNT(*) AS messy FROM customer WHERE mobile_no LIKE '% %' OR mobile_no LIKE '%-%';" | local/lab.sh sql legacy_dev >"$LOG" 2>&1
+check "19 no messy numbers left" 0 "^[[:space:]]+0$" $?
+lab apply 20; both "20 grant on new view"       "60 grants app reader"
+echo "SELECT COUNT(*) FROM legacy_dev.v_customer_loans;" | local/lab.sh sql app_reader >"$LOG" 2>&1
+check "20 app_reader can read the view" 0 "^[[:space:]]+[1-9][0-9]*$" $?
+lab apply 21; both "21 new trigger"             "50 trigger loan document bi"
+TRG="SELECT 'TRIGGERS='||COUNT(*) FROM user_triggers WHERE table_name='LOAN_DOCUMENT';"
+lab apply 22; both "22 rebuild table"           "rebuild loan document"
+echo "$TRG" | local/lab.sh sql legacy_dev >"$LOG" 2>&1
+check "22 rebuild silently dropped the trigger" 0 "TRIGGERS=0" $?
+lab apply 22 fix; both "22 touched R files re-run" "50 trigger loan document bi"
+echo "$TRG" | local/lab.sh sql legacy_dev >"$LOG" 2>&1
+check "22 trigger is back" 0 "TRIGGERS=1" $?
+db reset local-personal;   check "fresh install with everything"   0 "Successfully applied" $?
+clean_compare
+
 echo "== Safety"
 db reset local-dev;        check "reset refused on shared dev"     1 "clean.*disabled|cleanDisabled" $?
 
