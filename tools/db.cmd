@@ -54,9 +54,11 @@ call :flyway %~2 %CMD%
 exit /b %ERRORLEVEL%
 
 :reset
-echo This WIPES your personal schema and rebuilds it from Git.
-call :flyway personal clean || exit /b 1
-call :flyway personal migrate
+set "RENV=%~2"
+if "%RENV%"=="" set "RENV=personal"
+echo This WIPES the %RENV% schema and rebuilds it from Git.
+call :flyway %RENV% clean || exit /b 1
+call :flyway %RENV% migrate
 exit /b %ERRORLEVEL%
 
 :baseline
@@ -101,7 +103,8 @@ echo   new ^<TICKET^> ^<description^>   Create a new versioned (V) file with a t
 echo   migrate ^<env^>                Apply pending changes (env = personal ^| dev ^| ...)
 echo   info ^<env^>                   Show what has run and what is pending
 echo   validate ^<env^>               Check Git files against what already ran
-echo   reset                        PERSONAL schema only: wipe it and rebuild from Git
+echo   reset [env]                  PERSONAL schema only: wipe it and rebuild from Git
+echo                                (env defaults to "personal"; shared envs refuse)
 echo   baseline ^<env^>               ONE TIME, existing database: mark it as "already at V1"
 echo   repair ^<env^>                 Fix the history table after a failed run (see docs)
 echo.

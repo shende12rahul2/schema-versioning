@@ -1,0 +1,4 @@
+# Shell scripts must keep Linux line endings (they also run inside Docker).
+*.sh  text eol=lf
+# Windows batch files need CRLF.
+*.cmd text eol=crlf

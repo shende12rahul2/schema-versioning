@@ -1,0 +1,20 @@
+# Local practice lab: one Oracle database with two schemas.
+#   LEGACY_DEV  - plays "shared Dev"; loaded from db/legacy/ on first start
+#   DEVX_LOCAL  - plays "your personal schema"; starts empty
+# Start/stop with local\lab up / local\lab down (see local/README.md).
+services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    container_name: schema-lab
+    ports:
+      - "1521:1521"
+    environment:
+      ORACLE_PASSWORD: Lab_Passw0rd   # SYS / SYSTEM - local lab only
+      LAB_PASSWORD: Lab_Passw0rd      # LEGACY_DEV, DEVX_LOCAL, APP_READER
+    volumes:
+      - ./init:/container-entrypoint-initdb.d:ro
+      - ./sql:/opt/lab/sql:ro
+      - ../db/legacy:/opt/legacy:ro
+      - lab-data:/opt/oracle/oradata
+volumes:
+  lab-data:

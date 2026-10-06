@@ -15,7 +15,8 @@ Usage: tools/db.sh <command> [args]
   migrate <env>                Apply pending changes (env = personal | dev | ...)
   info <env>                   Show what has run and what is pending
   validate <env>               Check Git files against what already ran
-  reset                        PERSONAL schema only: wipe it and rebuild from Git
+  reset [env]                  PERSONAL schema only: wipe it and rebuild from Git
+                               (env defaults to "personal"; shared envs refuse)
   baseline <env>               ONE TIME, existing database: mark it as "already at V1"
   repair <env>                 Fix the history table after a failed run (see docs)
 
@@ -55,9 +56,10 @@ SQL
     flyway_for "$1" "$cmd"
     ;;
   reset)
-    echo "This WIPES your personal schema and rebuilds it from Git."
-    flyway_for personal clean
-    flyway_for personal migrate
+    env="${1:-personal}"
+    echo "This WIPES the $env schema and rebuilds it from Git."
+    flyway_for "$env" clean
+    flyway_for "$env" migrate
     ;;
   baseline)
     [[ $# -ge 1 ]] || { echo "Usage: tools/db.sh baseline <env>" >&2; exit 1; }

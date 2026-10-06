@@ -4,6 +4,7 @@ All changes to our Oracle database are SQL files in this repository.
 [Flyway](https://documentation.red-gate.com/flyway) runs them and remembers what already ran.
 
 👉 **Start here: [docs/WORKFLOW.md](docs/WORKFLOW.md)** – the full workflow with diagrams.
+🧪 **Practise it: [local/README.md](local/README.md)** – a local Oracle in Docker with an example legacy schema and 11 step-by-step scenarios.
 
 ## In 30 seconds
 
@@ -20,15 +21,20 @@ conf/
   flyway.conf                  shared settings (no passwords)
   env/dev.conf                 shared Dev database
   env/personal.conf.example    copy to personal.conf for your own schema
+  env/local-*.conf             local practice lab only
 db/
   migrations/versioned/        V files – run once, in order
   migrations/repeatable/       R files – one per code object, re-run when changed
   callbacks/                   automatic checks after every run
-  legacy/                      old scripts, read-only archive
+  legacy/                      old scripts, read-only archive (example LOS schema)
 tools/
   db.cmd  (Windows)  /  db.sh  (Linux/Mac)   simple commands around Flyway
 docs/
   WORKFLOW.md                  how we work – read this first
+local/
+  docker-compose.yml           local Oracle for practice
+  lab.cmd / lab.sh             start the lab, open SQL, compare schemas, load scenarios
+  scenarios/                   files for each practice scenario
 ```
 
 ## First-time setup on your machine

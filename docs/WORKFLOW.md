@@ -4,6 +4,10 @@
 shared database by hand. A tool (Flyway) runs the files for us and remembers
 which ones already ran.
 
+> 🧪 **Want to try it first?** The [local practice lab](../local/README.md) runs an
+> Oracle database in Docker with an example legacy schema and walks you through
+> every scenario below (onboarding, new changes, failures, recovery).
+
 ---
 
 ## 1. The big picture
@@ -130,8 +134,8 @@ part of a file may already have run.
 | **Invalid objects after migrate** | Fix the R file of the broken object (or the object it depends on) and migrate again. |
 | **"Checksum mismatch" / validate error on personal schema** | Someone changed a file you already ran. `tools\db reset`. |
 | **"Checksum mismatch" on shared Dev** | A merged V file was edited. Put the file back as it was and add a new V file instead. Ask the DB lead. |
-| **Someone changed Dev by hand** | Put that change into a V or R file in Git, otherwise the next run will overwrite it. |
-| **Drop / rename an object** | V file with the `DROP` (check it exists first), and delete its R file in the same pull request. |
+| **Someone changed Dev by hand** | Flyway does **not** notice this. Put the change into the R/V file in Git – otherwise the next edit of that R file silently removes it. |
+| **Drop / rename an object** | V file with a *guarded* `DROP` (skip if it does not exist – on an empty schema it never existed), and delete its R file in the same pull request. No repair needed. |
 
 Then always: **test the fix on your personal schema → review → apply to Dev.**
 
@@ -157,7 +161,7 @@ Windows: `tools\db …`  Linux/Mac: `tools/db.sh …`
 | `tools\db new LOS-1234 add pan` | Create a new V file with a timestamp |
 | `tools\db migrate personal` | Apply all pending changes to your schema |
 | `tools\db info personal` | List what has run and what is pending |
-| `tools\db reset` | Wipe **your personal** schema and rebuild from Git |
+| `tools\db reset` | Wipe **your personal** schema and rebuild from Git (refused on shared Dev) |
 | `tools\db migrate dev` | Apply to shared Dev (**DB lead, from main**) |
 | `tools\db validate dev` | Check Git files still match what ran on Dev |
 | `tools\db baseline dev` | One-time setup only |
