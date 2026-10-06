@@ -93,8 +93,24 @@ if not exist "%CONF%" (
 )
 echo ^>^> Environment: %ENVNAME%
 shift
-call flyway "-configFiles=conf/flyway.conf,%CONF:\=/%" %1 %2 %3
-exit /b %ERRORLEVEL%
+where flyway >nul 2>&1
+if not errorlevel 1 (
+  call flyway "-configFiles=conf/flyway.conf,%CONF:\=/%" %1 %2 %3
+  exit /b !ERRORLEVEL!
+)
+where docker >nul 2>&1
+if errorlevel 1 (
+  echo ERROR: Flyway not found. Install the Flyway CLI or Docker Desktop.
+  exit /b 1
+)
+REM No Flyway installed: run the official Flyway Docker image instead.
+REM Inside the container "localhost" is the container itself, so point it at the host.
+set "URL="
+for /f "tokens=1,* delims==" %%a in ('findstr /b /c:"flyway.url=" "%CONF%"') do set "URL=%%b"
+set "URL=!URL:@//localhost:=@//host.docker.internal:!"
+if not defined FLYWAY_IMAGE set "FLYWAY_IMAGE=flyway/flyway:latest"
+docker run --rm --add-host=host.docker.internal:host-gateway -e FLYWAY_PASSWORD -v "%CD%:/work" -w /work %FLYWAY_IMAGE% "-configFiles=conf/flyway.conf,%CONF:\=/%" "-url=!URL!" %1 %2 %3
+exit /b !ERRORLEVEL!
 
 :help
 echo Usage: tools\db ^<command^> [args]
@@ -109,4 +125,5 @@ echo   baseline ^<env^>               ONE TIME, existing database: mark it as "a
 echo   repair ^<env^>                 Fix the history table after a failed run (see docs)
 echo.
 echo Password: set FLYWAY_PASSWORD before running. It is never stored in Git.
+echo Flyway: uses the "flyway" command if installed, otherwise the flyway/flyway Docker image.
 exit /b 0

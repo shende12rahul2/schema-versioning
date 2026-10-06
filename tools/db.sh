@@ -21,6 +21,7 @@ Usage: tools/db.sh <command> [args]
   repair <env>                 Fix the history table after a failed run (see docs)
 
 Password: set FLYWAY_PASSWORD before running. It is never stored in Git.
+Flyway: uses the "flyway" command if installed, otherwise the flyway/flyway Docker image.
 TXT
 }
 
@@ -33,7 +34,20 @@ flyway_for() {
     exit 1
   fi
   echo ">> Environment: $env"
-  flyway "-configFiles=conf/flyway.conf,${conf}" "$@"
+  if command -v flyway >/dev/null 2>&1; then
+    flyway "-configFiles=conf/flyway.conf,${conf}" "$@"
+  elif command -v docker >/dev/null 2>&1; then
+    # No Flyway installed: run the official Flyway Docker image instead.
+    # Inside the container "localhost" is the container itself, so point it at the host.
+    local url
+    url="$(grep '^flyway.url=' "$conf" | cut -d= -f2- | sed 's/@\/\/localhost:/@\/\/host.docker.internal:/')"
+    docker run --rm --add-host=host.docker.internal:host-gateway \
+      -e FLYWAY_PASSWORD -v "$ROOT:/work" -w /work "${FLYWAY_IMAGE:-flyway/flyway:latest}" \
+      "-configFiles=conf/flyway.conf,${conf}" "-url=${url}" "$@"
+  else
+    echo "ERROR: Flyway not found. Install the Flyway CLI or Docker." >&2
+    exit 1
+  fi
 }
 
 cmd="${1:-help}"; shift || true

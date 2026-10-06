@@ -7,6 +7,7 @@ COLUMN object_name FORMAT A35
 COLUMN table_name  FORMAT A25
 COLUMN column_name FORMAT A25
 COLUMN data_type   FORMAT A15
+COLUMN nullable    FORMAT A8
 COLUMN owner       FORMAT A12
 COLUMN name        FORMAT A35
 COLUMN type        FORMAT A15

@@ -59,8 +59,10 @@ case "$cmd" in
     [[ $# -ge 1 ]] || { echo "Usage: local/lab.sh sql <legacy_dev|devx_local|system> [file]" >&2; exit 1; }
     if [[ $# -ge 2 ]]; then
       docker exec -i "$CONTAINER" sqlplus -s -L "$1/$PW@$CONN" < "$2"
-    else
+    elif [[ -t 0 ]]; then
       docker exec -it "$CONTAINER" sqlplus -L "$1/$PW@$CONN"
+    else
+      docker exec -i "$CONTAINER" sqlplus -s -L "$1/$PW@$CONN"
     fi
     ;;
   compare)
