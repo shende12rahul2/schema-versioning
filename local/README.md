@@ -305,7 +305,7 @@ tools\db migrate local-dev
 ```bash
 local/test-all-scenarios.sh
 ```
-Runs scenarios 01–22 on a fresh lab and checks every result (70 checks, about
+Runs scenarios 01–22 on a fresh lab and checks every result (72 checks, about
 5 minutes; Linux, Mac or Git Bash). It deletes the lab data and resets
 `db/migrations/` to Git.
 

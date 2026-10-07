@@ -14,6 +14,7 @@ All changes to our Oracle database are SQL files in this repository.
 - **Procedure / view / package / trigger / grant** → edit its **R file**
 - Test on your developer database: `tools\db migrate developer`
 - Pull request → review → merge → DB lead runs `tools\db migrate dev`
+- **Which change is on which environment?** `tools\db report`
 - Never change shared Dev by hand. Never edit a merged V file.
 - Safety checks run by themselves: wrong database, wiping a shared schema, edited V files,
   broken objects – and a **Database check** on every pull request (GitHub Actions).

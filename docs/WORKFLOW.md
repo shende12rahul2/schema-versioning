@@ -171,6 +171,7 @@ Windows: `tools\db …`  Linux/Mac: `tools/db.sh …`
 | `tools\db validate dev` | Check Git files still match what ran on Dev |
 | `tools\db baseline dev` | One-time setup only |
 | `tools\db repair dev` | Only after a failed V file (see section 5) |
+| `tools\db report` | **Which change is on which environment** – one table for Dev, QA, UAT, Prod |
 
 Before running, set your password for that session:
 

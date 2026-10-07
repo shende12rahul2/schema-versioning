@@ -57,6 +57,7 @@ check "test data loads through the real procedures" 0 "Test Customer One" $?
 echo "== 03 new V file"
 lab apply 03
 db migrate local-developer; check "V file runs on developer db"         0 "add pan to customer" $?
+db report local-dev local-developer; check "report: dev is behind the developer db" 0 "add pan to customer \\| PENDING \\| OK" $?
 db migrate local-dev;      check "V file runs on dev"              0 "add pan to customer" $?
 db migrate local-dev;      check "V file never runs twice"         0 "up to date" $?
 
@@ -113,6 +114,7 @@ echo "== 11 out-of-order merge"
 lab apply 11
 db migrate local-dev;      check "late file runs out of order"     0 "out of order" $?
 db reset local-developer;   check "fresh install includes it"       0 "Successfully applied 13 migrations" $?
+db report local-dev local-developer; check "report: late file marked, both up to date" 0 "add loan tenure \\| OK [0-9-]+ \\(late\\)" $?
 clean_compare
 
 echo "== 12-22 everyday examples (docs/DEVELOPER_GUIDE.md)"

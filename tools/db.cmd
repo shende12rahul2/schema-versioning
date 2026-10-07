@@ -16,6 +16,7 @@ if /i "%CMD%"=="validate" goto :simple
 if /i "%CMD%"=="reset"    goto :reset
 if /i "%CMD%"=="baseline" goto :baseline
 if /i "%CMD%"=="repair"   goto :repair
+if /i "%CMD%"=="report"   goto :report
 goto :help
 
 :new
@@ -50,7 +51,7 @@ if "%~2"=="" (
   echo Usage: tools\db %CMD% ^<env^>
   exit /b 1
 )
-call :flyway %~2 %CMD%
+call :flyway %~2 %CMD% %3
 exit /b %ERRORLEVEL%
 
 :reset
@@ -81,6 +82,23 @@ if /i not "!OK!"=="yes" (
   exit /b 1
 )
 call :flyway %~2 repair
+exit /b %ERRORLEVEL%
+
+:report
+set "ENVS="
+:reportargs
+shift
+if "%~1"=="" goto :reportrun
+set "ENVS=!ENVS! %~1"
+goto :reportargs
+:reportrun
+if not defined ENVS (
+  for %%F in (conf\env\*.conf) do (
+    set "N=%%~nF"
+    if /i not "!N!"=="developer" if /i not "!N:~0,6!"=="local-" set "ENVS=!ENVS! !N!"
+  )
+)
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\env-report.ps1 -EnvList "!ENVS!"
 exit /b %ERRORLEVEL%
 
 :flyway
@@ -123,6 +141,8 @@ echo   reset [env]                  DEVELOPER database only: wipe it and rebuild
 echo                                (env defaults to "developer"; shared envs refuse)
 echo   baseline ^<env^>               ONE TIME, existing database: mark it as "already at V1"
 echo   repair ^<env^>                 Fix the history table after a failed run (see docs)
+echo   report [env ...]             Which change is on which environment (read-only table;
+echo                                default: every conf\env\*.conf except developer/local-*)
 echo.
 echo Password: set FLYWAY_PASSWORD before running. It is never stored in Git.
 echo Flyway: uses the "flyway" command if installed, otherwise the flyway/flyway Docker image.

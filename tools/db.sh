@@ -19,6 +19,8 @@ Usage: tools/db.sh <command> [args]
                                (env defaults to "developer"; shared envs refuse)
   baseline <env>               ONE TIME, existing database: mark it as "already at V1"
   repair <env>                 Fix the history table after a failed run (see docs)
+  report [env ...]             Which change is on which environment (read-only table;
+                               default: every conf/env/*.conf except developer/local-*)
 
 Password: set FLYWAY_PASSWORD before running. It is never stored in Git.
 Flyway: uses the "flyway" command if installed, otherwise the flyway/flyway Docker image.
@@ -67,7 +69,8 @@ SQL
     ;;
   migrate|info|validate)
     [[ $# -ge 1 ]] || { echo "Usage: tools/db.sh $cmd <env>" >&2; exit 1; }
-    flyway_for "$1" "$cmd"
+    env="$1"; shift
+    flyway_for "$env" "$cmd" "$@"
     ;;
   reset)
     env="${1:-developer}"
@@ -85,6 +88,23 @@ SQL
     read -r -p "Have you undone any partial changes by hand? (yes/no) " ok
     [[ "$ok" == "yes" ]] || { echo "Cancelled."; exit 1; }
     flyway_for "$1" repair
+    ;;
+  report)
+    if [[ $# -eq 0 ]]; then
+      for f in conf/env/*.conf; do
+        n="$(basename "$f" .conf)"
+        [[ "$n" == developer || "$n" == local-* ]] || set -- "$@" "$n"
+      done
+    fi
+    command -v python3 >/dev/null 2>&1 || { echo "ERROR: report needs python3 (on Windows use tools\\db report)." >&2; exit 1; }
+    tmp="$(mktemp -d)"; args=()
+    for e in "$@"; do
+      echo ">> Reading $e ..." >&2
+      ( flyway_for "$e" info -outputType=json ) >"$tmp/$e.json" 2>/dev/null || true
+      args+=("$e=$tmp/$e.json")
+    done
+    python3 "$ROOT/tools/env_report.py" "${args[@]}"
+    rm -rf "$tmp"
     ;;
   help|-h|--help) usage ;;
   *) echo "Unknown command: $cmd" >&2; usage; exit 1 ;;

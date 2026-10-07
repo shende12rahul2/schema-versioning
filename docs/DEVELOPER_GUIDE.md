@@ -23,9 +23,15 @@ See [section 11](#11-practice-lab-and-test-results) for the test results.
 
 ## 1. Why we are doing this
 
+Our SQL scripts are already in GitHub, but nothing records **which script has
+been applied to which environment**. Developers change the schema, and at
+release time nobody can say for sure what is on Dev, QA, UAT or Prod – changes
+are missed, run twice or run in the wrong order, and releases break.
+
 | Today (legacy) | With schema versioning |
 |---|---|
-| Scripts on shared drives / e-mail; nobody is sure which ran where | Every change is a file in Git; Flyway records exactly what ran, when, in each database |
+| Scripts are in GitHub, but which ones ran on which environment is not tracked | Each database records exactly which change ran, when and by whom; `tools\db report` shows every environment side by side |
+| Releases break: a script missed on QA, run twice on Dev, or run in the wrong order | Flyway runs each change once, in order, and only what is still missing on that environment |
 | Hand fixes on Dev that never reach the scripts (e.g. our 2024 `EMAIL` hotfix) | No hand changes; Git is the single source of truth |
 | Building a new environment = guesswork | `V1` + all files rebuilds any schema from empty, the same way every time |
 | A broken procedure is found by the UI team | Broken (INVALID) objects stop the deployment immediately |
@@ -299,11 +305,22 @@ Executing SQL callback: afterMigrate - check invalid
 
 ### Step 7 – Later environments (QA, UAT, Prod)
 
-For each one: add `conf/env/<env>.conf` (URL and user only, `cleanDisabled=true`),
-compare it with Git as in step 4, `tools\db baseline <env>` once, then deploy
-**the same commit** that was tested on Dev with `tools\db migrate <env>`.
-If an environment is missing changes that Dev already has, apply them through
-the normal V/R files – never by hand.
+For each one: add `conf/env/<env>.conf` (URL, user, `cleanDisabled=true` and
+`flyway.placeholders.expected_database`), compare it with Git as in step 4,
+`tools\db baseline <env>` once, then deploy **the same commit** that was tested
+on Dev with `tools\db migrate <env>`. Flyway applies exactly the changes that
+environment is still missing – check them first with `tools\db report`
+([5.1](#51-which-change-is-on-which-environment)). Never apply anything by hand.
+
+
+### Scope: one application now, more later
+
+This first phase is **one application ↔ one schema**: one set of V/R files,
+deployed to each environment of that application. The next phase extends it to
+**one-to-many** (several applications or schemas). The same rules, commands and
+checks carry over; what will change is the layout (one migrations folder and
+one set of `conf/env` files per schema) and the report (one per application).
+That design will be added to this guide when the phase starts.
 
 ---
 
@@ -366,6 +383,45 @@ tools\db migrate dev
 | `tools\db reset [env]` | wipe & rebuild a **developer** database (refused on shared ones) |
 | `tools\db baseline <env>` | one-time: mark an existing database as "at V1" |
 | `tools\db repair <env>` | only after a failed V file ([8.1](#81-a-v-file-failed-half-way)) |
+| `tools\db report [env …]` | **which change is on which environment** ([5.1](#51-which-change-is-on-which-environment)) |
+
+### 5.1 Which change is on which environment?
+
+Every database keeps its own history (`flyway_schema_history`): which change
+ran, when, and by whom. `tools\db report` reads it from every shared
+environment (all `conf/env/*.conf` except `developer` and `local-*`, or the ones
+you name) and puts them side by side. It only reads – nothing is changed.
+
+```bat
+tools\db report
+tools\db report dev qa uat prod
+```
+
+Output from the lab, shortened (shared Dev behind a developer database, QA not reachable):
+
+```text
+| Change | dev | developer | qa | Same everywhere |
+|---|---|---|---|---|
+| V1  initial schema | OK 2026-10-07 | OK 2026-10-07 | unreachable | yes |
+| V20261007100000  LOS1234 add pan to customer | OK 2026-10-07 | OK 2026-10-07 | unreachable | yes |
+| V20261008100000  LOS1300 add branch code | PENDING | OK 2026-10-07 | unreachable | **NO** |
+| R  20 procedure add customer | PENDING | OK 2026-10-07 | unreachable | **NO** |
+
+- **dev**: 5 change(s) waiting
+- **qa**: could not connect (check conf/env/qa.conf and the password)
+```
+
+| Cell | Meaning |
+|---|---|
+| `OK <date>` | applied on that date (`(late)` = merged after newer changes – fine) |
+| `PENDING` | in Git, not yet applied here – the next `migrate` will apply it |
+| `FAILED` | failed here – see [8.1](#81-a-v-file-failed-half-way) |
+| `applied, file removed` | ran here, but its R file was deleted (e.g. a dropped object) |
+| `newer than Git` | this database has a change your Git checkout does not – `git pull` |
+
+Use it **before a release** (what will `migrate` apply to QA/Prod?) and
+**after** (is everything applied everywhere?). The output is a Markdown table:
+paste it into the release note or the pull request.
 
 ---
 
@@ -833,7 +889,7 @@ set FLYWAY_PASSWORD=Lab_Passw0rd
 | – | Wrong database stopped; `reset` refused on a non-developer schema | ✅ |
 | – | Pull-request check: passes a good change, fails an edited merged V file and an unguarded drop | ✅ |
 
-**70 automated checks passed** on a fresh lab (Oracle 23 Free, Flyway 13.9.0 via
+**72 automated checks passed** on a fresh lab (Oracle 23 Free, Flyway 13.9.0 via
 Docker, no Flyway installed locally). Maintainers can repeat the whole run:
 
 ```bash
