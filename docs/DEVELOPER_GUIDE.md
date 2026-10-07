@@ -65,9 +65,22 @@ A few more words you will see:
 | **Version** | The number after `V` – we use a timestamp `yyyyMMddHHmmss`, so files from different developers never clash |
 | **Checksum** | Fingerprint of a file. If a V file that already ran is edited, the checksum changes and Flyway stops (*checksum mismatch*) |
 | **Baseline** | One-time step for an *existing* database: "this schema already has V1, don't run it" |
-| **Callback** | SQL that runs automatically – ours (`db/callbacks/afterMigrate__check_invalid.sql`) recompiles and fails if any object is INVALID |
+| **Callback** | SQL that Flyway runs automatically before/after a command – ours are the safety checks below |
 | **Environment** | A database we deploy to, defined by `conf/env/<name>.conf` (`developer`, `dev`, later `qa`, `uat`, `prod`) |
 | **Developer database** | Your own schema (`DEVDB_<name>`), built from Git, where you test your SQL changes **and the application** before anything reaches shared Dev |
+
+### Automatic safety checks
+
+You don't have to remember these – they run by themselves:
+
+| Check | When | Stops… |
+|---|---|---|
+| **Wrong database** | before every `migrate`, `baseline`, `repair`, `reset` | a run when the database is not the one named in the environment file (`expected_database`) – e.g. a Prod URL pasted into `dev.conf` |
+| **Developer databases only** | before every `reset` | wiping any schema that is not `DEVDB_<name>` – even if a config file was copied by mistake |
+| **No wipe on shared databases** | `reset` on `dev`, `qa`, … | always (`cleanDisabled=true`) |
+| **Edited V file** | before every `migrate` | a run when a V file that already ran was changed (*checksum mismatch*) |
+| **Invalid objects** | after every `migrate` | the deployment when any procedure/view/package/trigger no longer compiles |
+| **Pull-request check** | every pull request and push to `main` (GitHub Actions) | merging when the change does not upgrade shared Dev cleanly, does not build from empty, or the two results differ |
 
 ---
 
@@ -101,7 +114,12 @@ notepad conf\env\developer.conf
 flyway.url=jdbc:oracle:thin:@//DEV-DB-HOST:1521/DEVSERVICE
 flyway.user=DEVDB_RSHENDE
 flyway.cleanDisabled=false
+flyway.placeholders.expected_database=DEVDB_NAME_FROM_DBA
 ```
+
+The last line is the **wrong-database check**: the name the database reports
+(`SELECT SYS_CONTEXT('USERENV','DB_NAME') FROM dual;`). If it doesn't match,
+every command stops with `WRONG DATABASE: connected to "…"`.
 
 `developer.conf` is in `.gitignore` – it is never committed.
 
@@ -267,7 +285,15 @@ Executing SQL callback: afterMigrate - check invalid
 
 ### Step 6 – Set up GitHub
 
-- **Protect `main`**: Settings → Branches → require a pull request and 1 approval.
+- **Protect `main`**: Settings → Branches → require a pull request, 1 approval and
+  the status check **Database check / database-check** to pass.
+- The **pull-request check** ([`.github/workflows/db-check.yml`](../.github/workflows/db-check.yml))
+  runs by itself on every pull request (about 5 minutes). It starts Oracle in Docker and:
+  1. builds "shared Dev" as it is on `main`, then applies the pull request on top (the real upgrade),
+  2. builds an empty developer database from the pull request alone (a fresh install),
+  3. fails unless both work and are identical.
+
+  Run the same check on your laptop before pushing: `local/ci-check.sh` (Git Bash).
 - The pull-request template (`.github/pull_request_template.md`) gives reviewers the checklist in [section 9](#9-pull-request-review-checklist).
 - Optional: a `CODEOWNERS` file with `db/ @your-db-lead` so the DB lead reviews every change.
 
@@ -708,6 +734,34 @@ always holds the whole object, the result is easy to review.
 ### 8.10 "Unable to execute clean as it has been disabled"
 You ran `tools\db reset` against a shared database. That is blocked on purpose.
 
+### 8.11 "WRONG DATABASE: connected to … but this environment expects …"
+```text
+Message    : ORA-20002: WRONG DATABASE: connected to "FREEPDB1" but this environment expects "PRODDB". Stopped - check flyway.url in conf/env/.
+```
+The URL in `conf/env/<env>.conf` points at a different database than the
+`expected_database` in the same file. Nothing of yours ran. Fix whichever of the
+two is wrong (ask the DB lead if unsure). On a brand-new empty schema Flyway may
+already have created its own empty `flyway_schema_history` table – harmless.
+
+### 8.12 "REFUSED: … is not a developer database"
+```text
+Message    : ORA-20003: REFUSED: "LEGACY_DEV" is not a developer database (DEVDB_<name>). Only developer databases can be reset.
+```
+`tools\db reset` was pointed at a schema that is not a developer database –
+usually a copied config file. Nothing was deleted. Check `flyway.user`.
+
+### 8.13 The pull-request check failed
+Open the failed run (pull request → *Checks* → *Database check*) and read the
+last lines: `DATABASE CHECK FAILED: …` says which step failed.
+
+| Message | Meaning | Fix |
+|---|---|---|
+| *does not upgrade shared Dev cleanly* | applying your branch on top of `main` failed – often a *checksum mismatch* (edited V file) or an INVALID object | sections [8.2](#82-migration-checksum-mismatch), [8.3](#83-invalid-objects-after-migrate) |
+| *does not build from an empty schema* | your change only works on an existing database – e.g. an unguarded `DROP` (`ORA-04043`) | section [8.7](#87-drop-an-object) |
+| *give different databases* | upgrade and fresh install differ – the lists above it show what | make V/R files produce the same result both ways |
+
+Reproduce it locally with `local/ci-check.sh`.
+
 ---
 
 ## 9. Pull-request review checklist
@@ -723,6 +777,7 @@ The template asks reviewers to confirm:
 - [ ] Data changes are safe to run on any database (MERGE / WHERE), no test data
 - [ ] No passwords, no `COMMIT`/`EXIT`/`SET`/`PROMPT`
 - [ ] Author ran `tools\db migrate developer` **and** a full `tools\db reset`
+- [ ] The automatic **Database check** on the pull request is green
 
 ---
 
@@ -775,12 +830,15 @@ set FLYWAY_PASSWORD=Lab_Passw0rd
 | 11 | Late merge runs out of order | ✅ |
 | 12–22 | Every example in section 7 (incl. forgotten procedure update and lost trigger) | ✅ |
 | – | `reset` refused on shared Dev | ✅ |
+| – | Wrong database stopped; `reset` refused on a non-developer schema | ✅ |
+| – | Pull-request check: passes a good change, fails an edited merged V file and an unguarded drop | ✅ |
 
-**68 automated checks passed** on a fresh lab (Oracle 23 Free, Flyway 13.9.0 via
+**70 automated checks passed** on a fresh lab (Oracle 23 Free, Flyway 13.9.0 via
 Docker, no Flyway installed locally). Maintainers can repeat the whole run:
 
 ```bash
 local/test-all-scenarios.sh      # Linux, Mac or Git Bash; about 5 minutes
+local/ci-check.sh                # the pull-request check, on your laptop
 ```
 
 ---

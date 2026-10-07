@@ -1,0 +1,36 @@
+# Runs on every pull request and every push to main.
+# Starts Oracle in Docker and proves the database changes are safe:
+# upgrade of "shared Dev" from the base branch, fresh install, and both identical.
+# Details: local/ci-check.sh and docs/DEVELOPER_GUIDE.md (section 9).
+name: Database check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  database-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Upgrade + fresh install + compare
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            BASE="origin/$BASE_REF"
+          elif [ -n "$BEFORE" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            BASE="$BEFORE"
+          else
+            BASE="HEAD~1"
+          fi
+          echo "Comparing against: $BASE"
+          local/ci-check.sh "$BASE"

@@ -5,3 +5,7 @@ flyway.url=jdbc:oracle:thin:@//DEV-DB-HOST:1521/DEVSERVICE
 flyway.user=DEVDB_YOURNAME
 # Developer databases may be wiped and rebuilt with "tools\db reset".
 flyway.cleanDisabled=false
+# Wrong-database check: the name this database reports. Ask the DBA, or run
+#   SELECT SYS_CONTEXT('USERENV','DB_NAME') FROM dual;
+# Every migrate/baseline/repair/reset stops if Flyway is connected anywhere else.
+flyway.placeholders.expected_database=DEVSERVICE_DB_NAME

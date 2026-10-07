@@ -32,6 +32,11 @@ docker logs %CONTAINER% 2>&1 | findstr /B /C:"ORA-" /C:"SP2-" >nul && (
 timeout /t 5 /nobreak >nul
 goto :waitloop
 :ready
+REM After a restart the old "ready" line is still in the log: also wait for a real connection.
+echo SELECT 'DB_UP' FROM dual; | docker exec -i %CONTAINER% sqlplus -s -L system/%PW%@%CONN% 2>nul | findstr /C:"DB_UP" >nul && goto :connected
+timeout /t 3 /nobreak >nul
+goto :ready
+:connected
 echo Lab is ready. LEGACY_DEV has the legacy schema, DEVELOPER_DB is empty.
 exit /b 0
 

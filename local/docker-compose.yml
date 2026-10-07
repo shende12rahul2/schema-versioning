@@ -11,6 +11,7 @@ services:
     environment:
       ORACLE_PASSWORD: Lab_Passw0rd   # SYS / SYSTEM - local lab only
       LAB_PASSWORD: Lab_Passw0rd      # LEGACY_DEV, DEVELOPER_DB, APP_READER
+      LAB_LOAD_LEGACY: ${LAB_LOAD_LEGACY:-1}   # 0 = leave LEGACY_DEV empty (used by local/ci-check.sh)
     volumes:
       - ./init:/container-entrypoint-initdb.d:ro
       - ./sql:/opt/lab/sql:ro

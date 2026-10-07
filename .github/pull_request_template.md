@@ -14,3 +14,4 @@ LOS-
 - [ ] Data changes are safe to run on any database (MERGE / WHERE), no test data
 - [ ] No passwords, no `COMMIT` / `EXIT` / `SET` / `PROMPT`
 - [ ] Author ran `tools\db migrate developer` **and** a full `tools\db reset`
+- [ ] The automatic **Database check** on this pull request is green

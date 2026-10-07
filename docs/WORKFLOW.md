@@ -114,7 +114,8 @@ flowchart TD
    the application you run locally at it and test the feature
    ([guide 3.6](DEVELOPER_GUIDE.md#36-test-the-application-against-your-developer-database)). Before the pull request, also run `tools\db reset` once to prove
    everything still builds from empty.
-4. **Pull request** – a reviewer checks the SQL using the checklist in the PR.
+4. **Pull request** – the automatic **Database check** builds and compares the
+   database (about 5 minutes) and a reviewer checks the SQL using the checklist in the PR.
 5. **Deploy to shared Dev** – after merge, the DB lead runs
    `tools\db migrate dev` from the latest `main`.
 6. **Hand over** – tell the API + UI team the change is on Dev.

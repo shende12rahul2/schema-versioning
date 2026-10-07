@@ -148,6 +148,11 @@ clean_compare
 
 echo "== Safety"
 db reset local-dev;        check "reset refused on shared dev"     1 "clean.*disabled|cleanDisabled" $?
+printf 'flyway.url=jdbc:oracle:thin:@//localhost:1521/FREEPDB1\nflyway.user=DEVELOPER_DB\nflyway.cleanDisabled=false\nflyway.placeholders.expected_database=PRODDB\n' > conf/env/tmp-wrong-db.conf
+db migrate tmp-wrong-db;   check "wrong database is stopped"       1 "WRONG DATABASE" $?
+printf 'flyway.url=jdbc:oracle:thin:@//localhost:1521/FREEPDB1\nflyway.user=LEGACY_DEV\nflyway.cleanDisabled=false\nflyway.placeholders.expected_database=FREEPDB1\n' > conf/env/tmp-copied.conf
+db reset tmp-copied;       check "reset refused on non-developer schema" 1 "is not a developer database" $?
+rm -f conf/env/tmp-wrong-db.conf conf/env/tmp-copied.conf
 
 echo "== Cleanup"
 git checkout -q -- db/migrations && git clean -qfd -- db/migrations

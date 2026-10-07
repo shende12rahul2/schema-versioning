@@ -47,6 +47,10 @@ case "$cmd" in
       fi
       sleep 5
     done
+    # After a restart the old "ready" line is still in the log: also wait for a real connection.
+    until echo "SELECT 'DB_UP' FROM dual;" | docker exec -i "$CONTAINER" sqlplus -s -L "system/$PW@$CONN" 2>/dev/null | grep -q "DB_UP"; do
+      sleep 3
+    done
     echo "Lab is ready. LEGACY_DEV has the legacy schema, DEVELOPER_DB is empty."
     ;;
   down)

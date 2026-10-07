@@ -305,9 +305,20 @@ tools\db migrate local-dev
 ```bash
 local/test-all-scenarios.sh
 ```
-Runs scenarios 01–22 on a fresh lab and checks every result (68 checks, about
+Runs scenarios 01–22 on a fresh lab and checks every result (70 checks, about
 5 minutes; Linux, Mac or Git Bash). It deletes the lab data and resets
 `db/migrations/` to Git.
+
+## Pull-request check on your laptop
+
+```bash
+local/ci-check.sh
+```
+The same check GitHub runs on every pull request: builds "shared Dev" from `main`,
+upgrades it with your branch, builds a fresh database from your branch, and
+requires both to be identical. Commit your `db/migrations` changes first.
+It recreates the lab with empty schemas – run `local\lab down` and `local\lab up`
+afterwards to get the legacy practice data back.
 
 ---
 
