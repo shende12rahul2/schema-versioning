@@ -5,6 +5,7 @@ All changes to our Oracle database are SQL files in this repository.
 
 👉 **Start here: [docs/WORKFLOW.md](docs/WORKFLOW.md)** – the full workflow with diagrams.
 📘 **Details: [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md)** – machine setup, team rollout, 11 worked examples, troubleshooting.
+🖼️ **Overview for management: [docs/overview/](docs/overview/README.md)** – three one-page images.
 🧪 **Practise it: [local/README.md](local/README.md)** – a local Oracle in Docker with an example legacy schema and 22 step-by-step scenarios.
 
 ## In 30 seconds
